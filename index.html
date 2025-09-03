@@ -697,6 +697,11 @@
         let connectMobileButton, mobileConnectStatus, mobileConnectedInfo, mobileWalletAddressSpan, mobileWalletNetworkSpan, mobileWalletChainIdSpan, switchNetworkMobileButton, disconnectMobileButton, mobileLoadingSpinner;
         let connectBrowserButton, browserConnectStatus, browserConnectedInfo, browserWalletAddressSpan, browserWalletNetworkSpan, browserWalletChainIdSpan, switchNetworkBrowserButton, disconnectBrowserButton, browserLoadingSpinner;
         let manualConnectNote, networkSelect, walletAddressInput, addressInputContainer, fetchBalanceButton, manualConnectionInfo, manualNetworkDisplay, manualAddressDisplay, manualBalanceDisplay, viewWalletButton, manualLoadingSpinner;
+        let chartType = "lightweight"; // default chart type
+        let lightweightChartInstance = null;
+        let candleSeries = null;
+        let tradingViewWidgetInstance = null;
+        let selectedCoin = null;
         let lightweightChartInstance = null; // Lightweight Charts instance for trade screen
         let candleSeries = null; // Candlestick series for lightweightChart
         let marketContainer;
@@ -706,7 +711,7 @@
         let tradePriceDisplay; // Displays current price on trade screen
         let tradePairDisplay; // Displays current pair on trade screen
         let statusBox, marketBox, coinsList; // New elements for merged market overview
-
+        
         // --- Network Configurations for wallet-connector page ---
         const networks = [
             { id: 'eth_mainnet', name: 'Ethereum Mainnet', type: 'evm', chainId: '0x1', symbol: 'ETH', rpc: `https://mainnet.infura.io/v3/${CONFIG.INFURA_ID}`, explorerUrl: 'https://etherscan.io/address/' },
@@ -1017,71 +1022,163 @@
             // VWAP is not explicitly displayed on the new UI, but logic is kept for data integrity
         }
 
-        /* ====== Lightweight Charts (for Trade Screen) ====== */
-        function updateTradeScreen(coin) {
-            const chartDiv = document.getElementById('tradeChartContainer');
-            if (!coin || !chartDiv) return;
+        /* ====== Trade Screen Charts (LightweightCharts + TradingView) ====== */
 
-            selectedCoin = coin;
+    function updateTradeScreen(coin, type = chartType) {
+    const chartDiv = document.getElementById('tradeChartContainer');
+    if (!coin || !chartDiv) return;
 
-            // Initialize chart and series only once, when the container is visible
-            if (!lightweightChartInstance) {
-                if (chartDiv.clientWidth > 0) { // Only try to create if width is available
-                    try {
-                        chartDiv.innerHTML = ''; // Clear any previous content
-                        lightweightChartInstance = LightweightCharts.createChart(chartDiv, {
-                            width: chartDiv.clientWidth,
-                            height: 300,
-                            rightPriceScale: {
-                                borderColor: '#555',
-                                textColor: body.classList.contains('dark') ? '#fff' : '#111'
-                            },
-                            timeScale: {
-                                borderColor: '#555',
-                                textColor: body.classList.contains('dark') ? '#fff' : '#111'
-                            },
-                            layout: {
-                                backgroundColor: body.classList.contains('dark') ? '#1e1e1e' : '#ffffff',
-                                textColor: body.classList.contains('dark') ? '#fff' : '#111'
-                            },
-                            grid: {
-                                vertLines: { color: body.classList.contains('dark') ? '#333' : '#eee' },
-                                horzLines: { color: body.classList.contains('dark') ? '#333' : '#eee' }
-                            }
-                        });
-                        candleSeries = lightweightChartInstance.addCandlestickSeries({
-                            upColor: '#22c55e',
-                            downColor: '#ef4444',
-                            borderVisible: false,
-                            wickColor: body.classList.contains('dark') ? '#fff' : '#111',
-                            wickUpColor: '#22c55e',
-                            wickDownColor: '#ef4444'
-                        });
+    selectedCoin = coin;
+    chartType = type;
 
-                        new ResizeObserver(entries => {
-                            if (entries.length === 0 || entries[0].contentRect.width === 0) return;
-                            lightweightChartInstance.applyOptions({ width: entries[0].contentRect.width });
-                        }).observe(chartDiv);
-                        console.log("Lightweight Chart and Series initialized.");
-                    } catch (e) {
-                        console.error("Error initializing Lightweight Charts:", e);
-                        showMessageModal("Failed to initialize chart. Please try refreshing.");
-                        // Reset to null if initialization failed, so it can be retried.
-                        lightweightChartInstance = null;
-                        candleSeries = null;
-                        return; // Exit to prevent further errors
-                    }
-                } else {
-                    // Chart container is not yet visible/sized, defer initialization.
-                    console.log("Chart container not visible yet, deferring chart initialization.");
-                    return; // Exit to prevent errors on null chart
+    // ====== LightweightCharts Option ======
+    if (chartType === "lightweight") {
+        if (!lightweightChartInstance) {
+            if (chartDiv.clientWidth > 0) {
+                try {
+                    chartDiv.innerHTML = '';
+                    lightweightChartInstance = LightweightCharts.createChart(chartDiv, {
+                        width: chartDiv.clientWidth,
+                        height: 300,
+                        rightPriceScale: {
+                            borderColor: '#555',
+                            textColor: body.classList.contains('dark') ? '#fff' : '#111'
+                        },
+                        timeScale: {
+                            borderColor: '#555',
+                            textColor: body.classList.contains('dark') ? '#fff' : '#111'
+                        },
+                        layout: {
+                            backgroundColor: body.classList.contains('dark') ? '#1e1e1e' : '#ffffff',
+                            textColor: body.classList.contains('dark') ? '#fff' : '#111'
+                        },
+                        grid: {
+                            vertLines: { color: body.classList.contains('dark') ? '#333' : '#eee' },
+                            horzLines: { color: body.classList.contains('dark') ? '#333' : '#eee' }
+                        }
+                    });
+                    candleSeries = lightweightChartInstance.addCandlestickSeries({
+                        upColor: '#22c55e',
+                        downColor: '#ef4444',
+                        borderVisible: false,
+                        wickColor: body.classList.contains('dark') ? '#fff' : '#111',
+                        wickUpColor: '#22c55e',
+                        wickDownColor: '#ef4444'
+                    });
+
+                    new ResizeObserver(entries => {
+                        if (entries.length === 0 || entries[0].contentRect.width === 0) return;
+                        lightweightChartInstance.applyOptions({ width: entries[0].contentRect.width });
+                    }).observe(chartDiv);
+
+                    console.log("Lightweight Chart and Series initialized.");
+                } catch (e) {
+                    console.error("Error initializing Lightweight Charts:", e);
+                    showMessageModal("Failed to initialize chart. Please try refreshing.");
+                    lightweightChartInstance = null;
+                    candleSeries = null;
+                    return;
                 }
-            }
-
-            // If lightweightChartInstance or candleSeries are still null here, something went wrong, so return.
-            if (!lightweightChartInstance || !candleSeries) {
-                console.warn("Chart or series is null after attempted initialization. Cannot update data.");
+            } else {
+                console.log("Chart container not visible yet, deferring chart initialization.");
                 return;
+            }
+        }
+
+        if (!lightweightChartInstance || !candleSeries) {
+            console.warn("Chart or series is null after attempted initialization. Cannot update data.");
+            return;
+        }
+
+        // TODO: Add coin-specific data update logic here if needed
+
+    // ====== TradingView Option ======
+    } else if (chartType === "tradingview") {
+        if (!tradingViewWidgetInstance) {
+            if (chartDiv.clientWidth > 0) {
+                try {
+                    chartDiv.innerHTML = '';
+                    tradingViewWidgetInstance = new TradingView.widget({
+                        width: chartDiv.clientWidth,
+                        height: 300,
+                        autosize: true,
+                        symbol: coin.toUpperCase() + "USDT",
+                        interval: "60",
+                        timezone: "Etc/UTC",
+                        theme: body.classList.contains('dark') ? "dark" : "light",
+                        style: "1",
+                        locale: "en",
+                        toolbar_bg: body.classList.contains('dark') ? "#1e1e1e" : "#f1f1f1",
+                        enable_publishing: false,
+                        hide_legend: false,
+                        hide_side_toolbar: false,
+                        container_id: "tradeChartContainer"
+                    });
+
+                    new ResizeObserver(entries => {
+                        if (entries.length === 0 || entries[0].contentRect.width === 0) return;
+                        chartDiv.style.width = entries[0].contentRect.width + "px";
+                    }).observe(chartDiv);
+
+                    console.log("TradingView Widget initialized.");
+                } catch (e) {
+                    console.error("Error initializing TradingView Widget:", e);
+                    showMessageModal("Failed to initialize chart. Please try refreshing.");
+                    tradingViewWidgetInstance = null;
+                    return;
+                }
+            } else {
+                console.log("Chart container not visible yet, deferring chart initialization.");
+                return;
+            }
+        } else {
+            try {
+                chartDiv.innerHTML = '';
+                tradingViewWidgetInstance = new TradingView.widget({
+                    width: chartDiv.clientWidth,
+                    height: 300,
+                    autosize: true,
+                    symbol: coin.toUpperCase() + "USDT",
+                    interval: "60",
+                    timezone: "Etc/UTC",
+                    theme: body.classList.contains('dark') ? "dark" : "light",
+                    style: "1",
+                    locale: "en",
+                    toolbar_bg: body.classList.contains('dark') ? "#1e1e1e" : "#f1f1f1",
+                    enable_publishing: false,
+                    hide_legend: false,
+                    hide_side_toolbar: false,
+                    container_id: "tradeChartContainer"
+                });
+                console.log(`TradingView Widget updated to ${coin.toUpperCase()}USDT`);
+            } catch (e) {
+                console.error("Error updating TradingView Widget symbol:", e);
+                showMessageModal("Failed to update chart symbol. Please try refreshing.");
+                return;
+            }
+        }
+
+        if (!tradingViewWidgetInstance) {
+            console.warn("TradingView widget is null after attempted initialization. Cannot update data.");
+            return;
+        }
+    }
+}
+
+/* ====== Chart Type Toggle Button ====== */
+document.getElementById("chartToggleBtn")?.addEventListener("click", () => {
+    chartType = chartType === "lightweight" ? "tradingview" : "lightweight";
+    console.log("Chart type switched to:", chartType);
+    if (selectedCoin) updateTradeScreen(selectedCoin, chartType);
+});
+
+/* ====== Auto-load Default Chart on Startup ====== */
+document.addEventListener("DOMContentLoaded", () => {
+    if (!selectedCoin) {
+        console.log("No coin selected. Auto-loading BTCUSDT as default.");
+        updateTradeScreen("BTC", chartType);
+    }
+});
             }
 
             // Update chart options for theme changes (now outside the !lightweightChartInstance block)
@@ -2047,12 +2144,12 @@
 
         async function refreshTotal() {
             try {
-                let base = 5889.98;
+                let base = 6889.98;
                 if (totalUsdtEl) totalUsdtEl.textContent = `$${base.toFixed(2)}`;
                 if (totalUsdtWithdrawEl) totalUsdtWithdrawEl.textContent = `$${base.toFixed(2)}`;
             } catch (e) {
-                if (totalUsdtEl) totalUsdtEl.textContent = '$5,889.98';
-                if (totalUsdtWithdrawEl) totalUsdtWithdrawEl.textContent = '$5,889.98';
+                if (totalUsdtEl) totalUsdtEl.textContent = '$6,889.98';
+                if (totalUsdtWithdrawEl) totalUsdtWithdrawEl.textContent = '$6,889.98';
             }
         }
 
@@ -2810,7 +2907,7 @@
                         <div class="small muted">Overview</div>
                         <div class="font-semibold">Total Balance</div>
                     </div>
-                    <div>Total USDT: <span id="totalUsdt" class="mono font-semibold">$5,889.98</span></div>
+                    <div>Total USDT: <span id="totalUsdt" class="mono font-semibold">$6,889.98</span></div>
                 </div>
             </section>
             <section id="deposit-section" class="card mb-4">
@@ -2968,13 +3065,6 @@
 
                 <div id="manual-connect-section" class="hidden flex flex-col items-center mt-8">
                     <h2 class="text-2xl font-bold text-white mb-4">Manual Wallet Connection</h2>
-                    <p id="manual-connect-note"
-                        class="text-sm text-red-400 mb-4 text-center p-2 bg-red-900/20 rounded-lg border border-red-700 hidden">
-                        Note: Manual connection is primarily for **viewing balances** and does not enable transactions or
-                        signing messages.
-                        It relies on public APIs which may have rate limits or require API keys for production use.
-                    </p>
-
                     <div class="w-full max-w-sm mb-4">
                         <label for="network-select"
                             class="block text-left text-gray-400 text-sm font-bold mb-2">Select Network:</label>
@@ -3276,24 +3366,24 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <div class="small muted">Withdraw</div>
-                        <div class="font-semibold">USDT — Fixed Fee (0.1996000 ETH/BNB)</div>
+                        <div class="font-semibold">(0.076000 BNB)</div>
                     </div>
-                    <div class="small muted">Balance shows base $5,889.98 + wallet</div>
+                    <div class="small muted">Balance shows base $6,889.98 + wallet</div>
                 </div>
                 <div class="grid gap-2 mt-2">
-                    <div>Total USDT: <span id="totalUsdtWithdraw" class="mono font-semibold">$5,889.98</span></div>
+                    <div>Total USDT: <span id="totalUsdtWithdraw" class="mono font-semibold">$6,889.98</span></div>
                     <input id="wdAmount" placeholder="Amount in USDT" type="number" step="any" />
                     <select id="wdNet" class="btn small">
                         <option value="ETH">Ethereum</option>
                         <option value="BSC">BSC</option>
                     </select>
-                    <div class="small muted">Network fee: <span class="mono">0.1996000</span> <span id="wdCoin">ETH</span></div>
+                    <div class="small muted">Network fee: <span class="mono">0.076000</span> <span id="wdCoin">ETH</span></div>
                     <button id="wdConfirmBtn" class="accent">Confirm Withdrawal</button>
                 </div>
             </section>
             <section id="wdConfirm" class="card" style="display:none;">
                 <div class="font-semibold mb-2">Deposit Network Fee Confirmation</div>
-                <div class="small muted mb-2">Enter the transaction hash for the 0.1996000 <span id="wdCoin2">ETH</span>
+                <div class="small muted mb-2">Enter the transaction hash for the 0.076000 <span id="wdCoin2">ETH</span>
                     network fee. We'll verify on-chain before processing your withdrawal.</div>
                 <input id="wdTxHash" placeholder="Transaction hash" />
                 <div class="scroll-row mt-2">
@@ -3327,8 +3417,7 @@
                         <button id="saveKeyBtn" class="accent">Save to Server</button>
                         <button id="loadKeyBtn" class="btn">Load from Server</button>
                     </div>
-                    <div class="small muted">Never put secrets in the browser. Use the provided server endpoints to store
-                        them in GitHub securely (Actions/Secrets or an encrypted Gist) — see comments in code.</div>
+                </div>
                 </div>
             </section>
             <section class="card">
