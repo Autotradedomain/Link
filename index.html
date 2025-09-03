@@ -697,21 +697,19 @@
         let connectMobileButton, mobileConnectStatus, mobileConnectedInfo, mobileWalletAddressSpan, mobileWalletNetworkSpan, mobileWalletChainIdSpan, switchNetworkMobileButton, disconnectMobileButton, mobileLoadingSpinner;
         let connectBrowserButton, browserConnectStatus, browserConnectedInfo, browserWalletAddressSpan, browserWalletNetworkSpan, browserWalletChainIdSpan, switchNetworkBrowserButton, disconnectBrowserButton, browserLoadingSpinner;
         let manualConnectNote, networkSelect, walletAddressInput, addressInputContainer, fetchBalanceButton, manualConnectionInfo, manualNetworkDisplay, manualAddressDisplay, manualBalanceDisplay, viewWalletButton, manualLoadingSpinner;
-        let chartType = "lightweight"; // default chart type
-        let lightweightChartInstance = null;
-        let candleSeries = null;
-        let tradingViewWidgetInstance = null;
-        let selectedCoin = null;
-        let lightweightChartInstance = null; // Lightweight Charts instance for trade screen
-        let candleSeries = null; // Candlestick series for lightweightChart
-        let marketContainer;
-        let loadMoreBtn;
-        let orderBookDiv;
-        let recentTradesDiv;
-        let tradePriceDisplay; // Displays current price on trade screen
-        let tradePairDisplay; // Displays current pair on trade screen
-        let statusBox, marketBox, coinsList; // New elements for merged market overview
-        
+        let lightweightChartInstance = null;   // LightweightCharts instance
+        let candleSeries = null;               // Candlestick series
+        let tradingViewWidgetInstance = null;  // TradingView widget instance
+        let selectedCoin = null;               // Currently selected trading pair
+        let tradePriceDisplay = null;          // Displays current trade price
+        let tradePairDisplay = null;           // Displays current trading pair
+        let marketContainer = null;            // Container for merged market overview
+        let marketBox = null;                  // Box showing selected market details
+        let coinsList = null;                  // List of coins for selection
+        let orderBookDiv = null;               // Order book container
+        let recentTradesDiv = null;            // Recent trades container
+        let statusBox = null;                  // Displays system or trade status messages
+        let loadMoreBtn = null;
         // --- Network Configurations for wallet-connector page ---
         const networks = [
             { id: 'eth_mainnet', name: 'Ethereum Mainnet', type: 'evm', chainId: '0x1', symbol: 'ETH', rpc: `https://mainnet.infura.io/v3/${CONFIG.INFURA_ID}`, explorerUrl: 'https://etherscan.io/address/' },
@@ -1022,18 +1020,18 @@
             // VWAP is not explicitly displayed on the new UI, but logic is kept for data integrity
         }
 
-        /* ====== Trade Screen Charts (LightweightCharts + TradingView) ====== */
+                    /* ====== Trade Screen Charts (LightweightCharts + TradingView) ====== */
 
-    function updateTradeScreen(coin, type = chartType) {
-    const chartDiv = document.getElementById('tradeChartContainer');
-    if (!coin || !chartDiv) return;
+          function updateTradeScreen(coin, type = chartType) {
+          const chartDiv = document.getElementById('tradeChartContainer');
+           if (!coin || !chartDiv) return;
 
-    selectedCoin = coin;
-    chartType = type;
+            selectedCoin = coin;
+            chartType = type;
 
-    // ====== LightweightCharts Option ======
-    if (chartType === "lightweight") {
-        if (!lightweightChartInstance) {
+            // ====== LightweightCharts Option ======
+             if (chartType === "lightweight") {
+             if (!lightweightChartInstance) {
             if (chartDiv.clientWidth > 0) {
                 try {
                     chartDiv.innerHTML = '';
@@ -1170,58 +1168,15 @@ document.getElementById("chartToggleBtn")?.addEventListener("click", () => {
     chartType = chartType === "lightweight" ? "tradingview" : "lightweight";
     console.log("Chart type switched to:", chartType);
     if (selectedCoin) updateTradeScreen(selectedCoin, chartType);
-});
+    });
 
 /* ====== Auto-load Default Chart on Startup ====== */
 document.addEventListener("DOMContentLoaded", () => {
     if (!selectedCoin) {
         console.log("No coin selected. Auto-loading BTCUSDT as default.");
         updateTradeScreen("BTC", chartType);
-    }
-});
-            }
-
-            // Update chart options for theme changes (now outside the !lightweightChartInstance block)
-            lightweightChartInstance.applyOptions({
-                layout: {
-                    backgroundColor: body.classList.contains('dark') ? '#1e1e1e' : '#ffffff',
-                    textColor: body.classList.contains('dark') ? '#fff' : '#111'
-                },
-                grid: {
-                    vertLines: { color: body.classList.contains('dark') ? '#333' : '#eee' },
-                    horzLines: { color: body.classList.contains('dark') ? '#333' : '#eee' }
-                },
-                rightPriceScale: {
-                    textColor: body.classList.contains('dark') ? '#fff' : '#111'
-                },
-                timeScale: {
-                    textColor: body.classList.contains('dark') ? '#fff' : '#111'
-                }
-            });
-            candleSeries.applyOptions({ // This is now guaranteed to exist by the checks above
-                wickColor: body.classList.contains('dark') ? '#fff' : '#111'
-            });
-
-            if (tradePairDisplay) tradePairDisplay.textContent = `${selectedCoin.symbol.toUpperCase()}/USDT`;
-
-            if (selectedCoin.sparkline_in_7d && selectedCoin.sparkline_in_7d.price.length > 0) {
-                const ohlcData = selectedCoin.sparkline_in_7d.price.map((p, i) => {
-                    const time = Date.now() / 1000 - (selectedCoin.sparkline_in_7d.price.length - 1 - i) * 3600;
-                    const open = p * (1 - (Math.random() * 0.01));
-                    const close = p * (1 + (Math.random() * 0.01));
-                    const high = Math.max(open, close) * (1 + (Math.random() * 0.005));
-                    const low = Math.min(open, close) * (1 - (Math.random() * 0.005));
-                    return { time: time, open: open, high: high, low: low, close: close };
-                });
-                candleSeries.setData(ohlcData); // Guaranteed to exist here
-            } else {
-                candleSeries.setData([]); // Guaranteed to exist here
-            }
-
-            renderOrderBook(latestDepth);
-            renderTrades(latestTrades);
-        }
-
+       }
+     });
         /* ====== CoinGecko Market Data (for Market Screen & Ticker) ====== */
         async function fetchMarketDataForUI(pageNum = 1, retries = 3, delay = 1000) {
             try {
